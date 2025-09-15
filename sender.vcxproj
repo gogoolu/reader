@@ -138,6 +138,8 @@
     <ClCompile Include="PostProcess.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".gitignore" />
+    <None Include="apikey.ini" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

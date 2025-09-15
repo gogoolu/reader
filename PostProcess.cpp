@@ -28,14 +28,3 @@ void OCR::GenerateTextFromImage(const std::string& ImagePath, const std::string&
 
 	std::cout << "======= Finish Image OCR ======\n";
 }
-
-
-void NetworkConnection::SendMsg(const std::string& Msg) {
-	CURL* curl = curl_easy_init();
-	if (curl) {
-		CURLcode res;
-		curl_easy_setopt(curl, CURLOPT_URL, "https://dashscope.aliyuncs.com/compatible-mode/v1");
-		res = curl_easy_perform(curl);
-		curl_easy_cleanup(curl);
-	}
-}

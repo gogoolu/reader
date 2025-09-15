@@ -27,6 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="apikey.ini" />
+    <None Include=".gitignore" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Capturer.h">
