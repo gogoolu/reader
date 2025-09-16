@@ -1,0 +1,8 @@
+{
+  "ImagePath": "./capture.bmp",
+  "OutputPath": "./output.txt",
+  "Model": "qwen-long",
+  "SystemPrompt": "You are an algorithm solving assistant, directly giving the answer code to the algorithm problem picture.",
+  "UserPrompt": "回答图片中的问题",
+  "ApiKey": ""
+}

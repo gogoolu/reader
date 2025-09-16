@@ -12,7 +12,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-// 保存 BMP 工具函数
+// save to BMP file
 bool Capturer::SaveBitmapToFile(BYTE* pBitmapBits, LONG width, LONG height, WORD bitsPerPixel, const std::string& filePath)
 {
 	DWORD dwSizeofDIB = ((width * bitsPerPixel + 31) / 32) * 4 * height;
@@ -47,7 +47,6 @@ int Capturer::Capture(const std::string& ImagePath)
 {
 	HRESULT hr;
 
-	// 1. 创建设备
 	ComPtr<ID3D11Device> d3dDevice;
 	ComPtr<ID3D11DeviceContext> d3dContext;
 	D3D_FEATURE_LEVEL featureLevel;
@@ -61,7 +60,6 @@ int Capturer::Capture(const std::string& ImagePath)
 		return -1;
 	}
 
-	// 2. 获取 DXGI 输出（显示器）
 	ComPtr<IDXGIDevice> dxgiDevice;
 	d3dDevice.As(&dxgiDevice);
 
@@ -69,12 +67,11 @@ int Capturer::Capture(const std::string& ImagePath)
 	dxgiDevice->GetAdapter(&dxgiAdapter);
 
 	ComPtr<IDXGIOutput> dxgiOutput;
-	dxgiAdapter->EnumOutputs(0, &dxgiOutput); // 主显示器
+	dxgiAdapter->EnumOutputs(0, &dxgiOutput);
 
 	ComPtr<IDXGIOutput1> dxgiOutput1;
 	dxgiOutput.As(&dxgiOutput1);
 
-	// 3. 创建桌面复制对象
 	ComPtr<IDXGIOutputDuplication> deskDupl;
 	hr = dxgiOutput1->DuplicateOutput(d3dDevice.Get(), &deskDupl);
 	if (FAILED(hr)) {
@@ -82,7 +79,6 @@ int Capturer::Capture(const std::string& ImagePath)
 		return -1;
 	}
 
-	// 4. 获取一帧
 	DXGI_OUTDUPL_FRAME_INFO frameInfo;
 	ComPtr<IDXGIResource> desktopResource;
 	hr = deskDupl->AcquireNextFrame(500, &frameInfo, &desktopResource);
@@ -91,15 +87,12 @@ int Capturer::Capture(const std::string& ImagePath)
 		return -1;
 	}
 
-	// 转成纹理
 	ComPtr<ID3D11Texture2D> acquiredImage;
 	desktopResource.As(&acquiredImage);
 
-	// 获取描述
 	D3D11_TEXTURE2D_DESC desc;
 	acquiredImage->GetDesc(&desc);
 
-	// 创建 CPU 可读纹理
 	D3D11_TEXTURE2D_DESC descCopy = desc;
 	descCopy.Usage = D3D11_USAGE_STAGING;
 	descCopy.BindFlags = 0;
@@ -113,10 +106,8 @@ int Capturer::Capture(const std::string& ImagePath)
 		return -1;
 	}
 
-	// 拷贝到 CPU 内存
 	d3dContext->CopyResource(cpuTex.Get(), acquiredImage.Get());
 
-	// Map
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	hr = d3dContext->Map(cpuTex.Get(), 0, D3D11_MAP_READ, 0, &mapped);
 	if (FAILED(hr)) {
@@ -124,10 +115,9 @@ int Capturer::Capture(const std::string& ImagePath)
 		return -1;
 	}
 
-	// 保存 BMP
 	int width = desc.Width;
 	int height = desc.Height;
-	int bpp = 32; // DXGI_FORMAT_B8G8R8A8_UNORM 常见情况
+	int bpp = 32; // DXGI_FORMAT_B8G8R8A8_UNORM
 	int rowPitch = width * 4;
 
 	BYTE* pData = new BYTE[rowPitch * height];
@@ -142,7 +132,6 @@ int Capturer::Capture(const std::string& ImagePath)
 	delete[] pData;
 	d3dContext->Unmap(cpuTex.Get(), 0);
 
-	// 释放帧
 	deskDupl->ReleaseFrame();
 
 	return 0;

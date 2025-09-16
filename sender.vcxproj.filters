@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="PostProcess.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Capturer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Network.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,12 +29,14 @@
     <None Include="packages.config" />
     <None Include="apikey.ini" />
     <None Include=".gitignore" />
+    <None Include="README.md" />
+    <None Include="config.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Capturer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="PostProcess.h">
+    <ClInclude Include="Network.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

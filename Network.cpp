@@ -3,31 +3,9 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
+#include "Network.h"
 
 using json = nlohmann::json;
-
-std::string BuildBody(const std::string& Model, const std::string& ImageURL, const std::string& Text)
-{
-	json j;
-	j["model"] = Model;
-	j["messages"] = json::array();
-
-	json message;
-	message["role"] = "user";
-	message["content"] = json::array();
-
-	json ImgStmt;
-	ImgStmt["type"] = "image_url";
-	ImgStmt["image_url"] = ImageURL;
-	j["messages"].push_back(std::move(ImgStmt));
-
-	json TextStmt;
-	TextStmt["type"] = "text";
-	TextStmt["text"] = Text;
-	j["messages"].push_back(std::move(TextStmt));
-
-	return j.dump();
-}
 
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
 	size_t totalSize = size * nmemb;
@@ -36,56 +14,81 @@ size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
 	return totalSize;
 }
 
-void Request(const std::string& BaseURL, const std::string& ApiKey, const std::string& Body, const char* Buffer)
+std::string Network::BuildBody(const std::string& Model, const std::string& ImageId, 
+	const std::string& SystemPrompt, const std::string& UserPrompt)
 {
+	json j;
+	j["model"] = Model;
+	j["messages"] = json::array();
+
+	json message;
+	message["role"] = "system";
+	message["content"] = SystemPrompt;
+	j["messages"].push_back(std::move(message));
+
+	json message1;
+	message1["role"] = "system";
+	message1["content"] = std::format("fileid://{}", ImageId);
+	j["messages"].push_back(std::move(message1));
+
+	json message2;
+	message2["role"] = "user";
+	message2["content"] = UserPrompt;
+	j["messages"].push_back(std::move(message2));
+
+	return j.dump();
+}
+
+void Network::Request(const std::string& ApiKey, const std::string& Body, std::string& OutBuffer)
+{
+	std::string BaseURL("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
 	CURL* curl;
 	CURLcode res;
-	curl_global_init(CURL_GLOBAL_ALL);
 	curl = curl_easy_init();
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, BaseURL.c_str());
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, Body.c_str());
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, Body.size());
 
+		// set write callback
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, Buffer);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &OutBuffer);
 
 		// set headers
 		struct curl_slist* headers = nullptr;
 		headers = curl_slist_append(headers, "Content-Type: application/json");
-		headers = curl_slist_append(headers, std::format("Authorization:Bearer {}", ApiKey).c_str());
+		headers = curl_slist_append(headers, std::format("Authorization: Bearer {}", ApiKey).c_str());
 
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
+		// set data
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, Body.c_str());
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, Body.size());
 
+
+		// send request
 		res = curl_easy_perform(curl);
-
 		if (res != CURLE_OK)
 			fprintf(stderr, "curl_easy_perform() failed: %s\n",
 				curl_easy_strerror(res));
 
 		curl_easy_cleanup(curl);
 	}
-	curl_global_cleanup();
 }
 
 // upload image to server then get the image url
-void UploadImage(const std::string& ImagePath, const std::string& ApiKey)
+void Network::UploadImage(const std::string& ImagePath, const std::string& ApiKey, std::string& OutBuffer)
 {
 	std::string UploadImageURL = "https://dashscope.aliyuncs.com/compatible-mode/v1/files";
 
 	CURL* curl;
 	CURLcode res;
-	curl_global_init(CURL_GLOBAL_ALL);
 	curl = curl_easy_init();
 	if (curl) {
 		// set base url
 		curl_easy_setopt(curl, CURLOPT_URL, UploadImageURL.c_str());
 
 		// set headers
-		std::string ApiKeyHeader = std::format("Authorization:Bearer {}", ApiKey);
+		std::string ApiKeyHeader = std::format("Authorization: Bearer {}", ApiKey);
 		struct curl_slist* headers = nullptr;
-		headers = curl_slist_append(headers, "Content-Type: application/json");
 		headers = curl_slist_append(headers, ApiKeyHeader.c_str());
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -107,32 +110,20 @@ void UploadImage(const std::string& ImagePath, const std::string& ApiKey)
 		// set form-data to curl
 		curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
 
+		// set write callback
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &OutBuffer);
+
 		// send request
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
 			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 
-
 		// cleanup
 		curl_mime_free(mime);
 		curl_slist_free_all(headers);
 		curl_easy_cleanup(curl);
-	}
-	curl_global_cleanup();
-}
 
-#if TEST_CODE
-int main() {
-	std::string BaseURL("https://dashscope.aliyuncs.com/compatible-mode/v1");
-	std::string Body = BuildBody("qwen-vl-plus", "https://dashscope.oss-cn-beijing.aliyuncs.com/images/dog_and_girl.jpeg", "回答图片中的问题");
-	std::ofstream ofs("Body_test.txt", std::ios::out);
-	if (!ofs) {
-		std::cout << "Error opening file for writing" << std::endl;
-		return 1;
+		std::cout << "Upload Image finished" << std::endl;
 	}
-	std::cout << Body << std::endl;
-	ofs << Body;
-	ofs.close();
-	return 0;
 }
-#endif
